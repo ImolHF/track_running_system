@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ athlete.name }} - 运动员详情{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{ athlete.name }}</h2>
+    <div>
+        <form method="POST" action="/sync/{{ athlete.id }}" style="display:inline">
+            <button type="submit" class="btn btn-success">立即同步</button>
+        </form>
+        <a href="/athletes/{{ athlete.id }}/edit" class="btn btn-outline-warning">编辑</a>
+        <a href="/athletes/{{ athlete.id }}/delete" class="btn btn-outline-danger">删除</a>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">活动总数</small><h4>{{ athlete.total_activities }}</h4></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">总距离</small><h4>{{ "%.1f"|format(athlete.total_distance_km) }} km</h4></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">佳明账号</small><h6>{{ athlete.garmin_email }}</h6></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">最近同步</small><h6>{{ athlete.last_synced_at.strftime("%m-%d %H:%M") if athlete.last_synced_at else "从未" }}</h6></div></div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h6 class="mb-0">近12周跑量</h6>
+    </div>
+    <div class="card-body">
+        <canvas id="athleteWeeklyDistance" data-url="/api/athletes/{{ athlete.id }}/weekly-distance" height="250"></canvas>
+    </div>
+</div>
+
+<h4>活动记录</h4>
+<table class="table table-striped table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>日期</th>
+            <th>名称</th>
+            <th>距离</th>
+            <th>配速</th>
+            <th>心率</th>
+            <th>时长</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for a in activities %}
+    <tr style="cursor:pointer" onclick="location.href='/activities/{{ a.id }}'">
+        <td>{{ a.start_time.strftime("%Y-%m-%d") if a.start_time else "" }}</td>
+        <td>{{ a.name or a.activity_type }}</td>
+        <td>{{ "%.2f"|format(a.distance_m / 1000) if a.distance_m else "--" }} km</td>
+        <td>{{ a.avg_pace_s_per_km | format_pace if a.avg_pace_s_per_km else "--" }}</td>
+        <td>{{ a.avg_heart_rate if a.avg_heart_rate else "--" }}</td>
+        <td>{{ a.duration_s | format_duration if a.duration_s else "--" }}</td>
+    </tr>
+    {% endfor %}
+    {% if not activities %}
+    <tr><td colspan="6" class="text-center text-muted">暂无活动记录</td></tr>
+    {% endif %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {{ 'active' if p == page else '' }}">
+            <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+initWeeklyDistanceChart('athleteWeeklyDistance');
+</script>
+{% endblock %}

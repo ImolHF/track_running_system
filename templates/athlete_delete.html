@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}删除 {{ athlete.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">确认删除</h5>
+            </div>
+            <div class="card-body">
+                <p>确定要删除运动员 <strong>{{ athlete.name }}</strong> 吗？</p>
+                <p>这将同时删除该运动员的 <strong>{{ activity_count }}</strong> 条活动记录和所有分段数据，此操作不可撤销。</p>
+                <form method="POST">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                    <a href="/athletes/{{ athlete.id }}" class="btn btn-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑' if athlete else '添加' }}运动员{% endblock %}
+
+{% block content %}
+<h2>{{ '编辑' if athlete else '添加' }}运动员</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">姓名</label>
+        <input type="text" class="form-control" id="name" name="name"
+               value="{{ athlete.name if athlete else '' }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="garmin_email" class="form-label">佳明账号（手机号或邮箱）</label>
+        <input type="text" class="form-control" id="garmin_email" name="garmin_email"
+               placeholder="输入佳明 Connect 登录用的手机号或邮箱"
+               value="{{ athlete.garmin_email if athlete else '' }}" required>
+        <div class="form-text">支持手机号和邮箱两种登录方式</div>
+    </div>
+    <div class="mb-3">
+        <label for="garmin_password" class="form-label">
+            佳明密码{{ '（留空则保持不变）' if athlete else '' }}
+        </label>
+        <input type="password" class="form-control" id="garmin_password" name="garmin_password"
+               {{ '' if athlete else 'required' }}>
+    </div>
+    {% if athlete %}
+    <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="is_active" name="is_active"
+               value="true" {{ 'checked' if athlete.is_active else '' }}>
+        <label class="form-check-label" for="is_active">启用同步</label>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">保存</button>
+    <a href="{{ '/athletes' if not athlete else '/athletes/' ~ athlete.id }}" class="btn btn-secondary">取消</a>
+</form>
+{% endblock %}

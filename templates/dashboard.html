@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}首页 - 首都高校一体化训练平台管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>运动员管理</h2>
+    <div>
+        <a href="/athletes/new" class="btn btn-primary me-2">添加运动员</a>
+        <form method="POST" action="/sync" style="display:inline">
+            <button type="submit" class="btn btn-success">全部同步</button>
+        </form>
+    </div>
+</div>
+
+{% if athletes %}
+<div class="row">
+    {% for a in athletes %}
+    <div class="col-md-4 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm" style="cursor:pointer" onclick="location.href='/athletes/{{ a.id }}'">
+            <div class="card-body text-center">
+                <div class="mb-2">
+                    <span class="badge bg-{{ 'success' if a.is_active else 'secondary' }} mb-1">
+                        {{ '活跃' if a.is_active else '停用' }}
+                    </span>
+                </div>
+                <h5 class="card-title">{{ a.name }}</h5>
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <small class="text-muted">活动次数</small>
+                        <h6 class="mb-0">{{ a.total_activities }}</h6>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">总距离</small>
+                        <h6 class="mb-0">{{ "%.1f"|format(a.total_distance_km) }} km</h6>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">最近同步</small>
+                    <div>
+                        <small>{{ a.last_synced_at.strftime("%m-%d %H:%M") if a.last_synced_at else "从未" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <p class="text-muted">暂无运动员，点击"添加运动员"开始</p>
+</div>
+{% endif %}
+{% endblock %}

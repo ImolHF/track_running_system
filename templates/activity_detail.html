@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ activity.name or '活动详情' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{ activity.name or activity.activity_type }}</h2>
+    <a href="/athletes/{{ activity.athlete_id }}" class="btn btn-outline-secondary">返回运动员</a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">距离</small><h4>{{ activity.distance_m | format_distance if activity.distance_m else "--" }}</h4></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">时长</small><h4>{{ activity.duration_s | format_duration if activity.duration_s else "--" }}</h4></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">平均配速</small><h4>{{ activity.avg_pace_s_per_km | format_pace if activity.avg_pace_s_per_km else "--" }}</h4></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">日期</small><h6>{{ activity.start_time.strftime("%Y-%m-%d %H:%M") if activity.start_time else "--" }}</h6></div></div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">平均心率</small><h5>{{ activity.avg_heart_rate if activity.avg_heart_rate else "--" }} bpm</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">最大心率</small><h5>{{ activity.max_heart_rate if activity.max_heart_rate else "--" }} bpm</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">平均步频</small><h5>{{ "%.0f"|format(activity.avg_cadence) if activity.avg_cadence else "--" }} spm</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">累计爬升</small><h5>{{ "%.0f"|format(activity.elevation_gain_m) if activity.elevation_gain_m else "--" }} m</h5></div></div>
+</div>
+
+<div class="row mb-2">
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">卡路里</small><h5>{{ activity.calories if activity.calories else "--" }}</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">步幅</small><h5>{{ "%.1f"|format(activity.avg_stride_length_cm) if activity.avg_stride_length_cm else "--" }} cm</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">有氧训练效果</small><h5>{{ "%.1f"|format(activity.training_effect_aerobic) if activity.training_effect_aerobic else "--" }}</h5></div></div>
+    <div class="col-md-3"><div class="card text-center p-3"><small class="text-muted">最大摄氧量</small><h5>{{ "%.0f"|format(activity.vo2max) if activity.vo2max else "--" }}</h5></div></div>
+</div>
+
+<h4 class="mt-4">实时数据曲线</h4>
+<div class="row g-3 mb-3">
+    <div class="col-md-6"><p class="small text-muted mb-1 text-center">心率 (bpm)</p><div style="height:280px"><canvas id="tsChartHr"></canvas></div></div>
+    <div class="col-md-6"><p class="small text-muted mb-1 text-center">配速</p><div style="height:280px"><canvas id="tsChartPace"></canvas></div></div>
+    <div class="col-md-6"><p class="small text-muted mb-1 text-center">步频 (spm)</p><div style="height:280px"><canvas id="tsChartCadence"></canvas></div></div>
+    <div class="col-md-6"><p class="small text-muted mb-1 text-center">步幅 (cm)</p><div style="height:280px"><canvas id="tsChartStride"></canvas></div></div>
+</div>
+
+{% if laps %}
+<h4 class="mt-4">分段数据</h4>
+
+<table class="table table-striped table-sm">
+    <thead class="table-dark">
+        <tr>
+            <th>圈</th>
+            <th>距离</th>
+            <th>时间</th>
+            <th>配速</th>
+            <th>心率</th>
+            <th>步频</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for lap in laps %}
+    <tr>
+        <td>{{ lap.lap_number }}</td>
+        <td>{{ "%.2f"|format(lap.distance_m / 1000) if lap.distance_m else "--" }} km</td>
+        <td>{{ lap.duration_s | format_duration if lap.duration_s else "--" }}</td>
+        <td>{{ lap.avg_pace_s_per_km | format_pace if lap.avg_pace_s_per_km else "--" }}</td>
+        <td>{{ lap.avg_heart_rate if lap.avg_heart_rate else "--" }}</td>
+        <td>{{ "%.0f"|format(lap.avg_cadence) if lap.avg_cadence else "--" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+initActivityTimeSeries({{ activity.id }});
+{% if laps %}
+initLapDetailCharts({{ laps | tojson }});
+{% endif %}
+</script>
+{% endblock %}

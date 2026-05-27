@@ -1,0 +1,36 @@
+body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    background-color: #f8f9fc;
+}
+
+.navbar-brand {
+    font-weight: 700;
+}
+
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem rgba(0, 0, 0, 0.08);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+.btn {
+    border-radius: 0.35rem;
+}
+
+canvas {
+    max-width: 100%;
+}
+
+h2 {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+h5 {
+    font-weight: 600;
+    color: #4a5568;
+}

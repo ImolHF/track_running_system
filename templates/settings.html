@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}设置{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">设置</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card"><div class="card-body">
+            <h5>修改密码</h5>
+            <form method="POST" action="/settings">
+                <div class="mb-3">
+                    <label for="old_password" class="form-label">原密码</label>
+                    <input type="password" class="form-control" id="old_password" name="old_password" required>
+                </div>
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">新密码</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                </div>
+                <div class="mb-3">
+                    <label for="new_password2" class="form-label">确认新密码</label>
+                    <input type="password" class="form-control" id="new_password2" name="new_password2" required>
+                </div>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+        </div></div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card"><div class="card-body">
+            <h5>系统信息</h5>
+            <p class="text-muted">数据自动同步间隔：每4小时</p>
+            <p class="text-muted">首次同步获取最近90天的数据</p>
+            <p class="text-muted">可在 .env 文件中修改 SYNC_INTERVAL_HOURS 和 INITIAL_SYNC_DAYS</p>
+        </div></div>
+    </div>
+</div>
+{% endblock %}
