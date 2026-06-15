@@ -15,7 +15,7 @@
             </select>
         </div>
 
-        <button id="createPlanBtn" class="btn btn-primary btn-sm w-100 mb-3" disabled>📋 创建新计划</button>
+        <button id="createPlanBtn" class="btn btn-primary btn-sm w-100 mb-3" disabled data-bs-toggle="modal" data-bs-target="#planModal">📋 创建新计划</button>
 
         <div class="small text-muted mb-1">已有计划</div>
         <div id="planList" class="flex-grow-1 overflow-auto">
@@ -42,6 +42,47 @@
         </div>
     </div>
 </div>
+
+<!-- Plan creation modal -->
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">创建训练计划</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small">训练目标 <span class="text-danger">*</span></label>
+                    <textarea id="planGoal" class="form-control form-control-sm" rows="2" placeholder="例如：5公里跑进18分、半马完赛、提高有氧基础..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">每周可训练天数</label>
+                    <select id="planDays" class="form-select form-select-sm">
+                        <option value="">不限</option>
+                        <option value="3">3天</option>
+                        <option value="4">4天</option>
+                        <option value="5">5天</option>
+                        <option value="6">6天</option>
+                        <option value="7">7天</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">伤病或身体限制</label>
+                    <input id="planInjury" class="form-control form-control-sm" placeholder="如：右膝旧伤、跟腱不适...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">额外要求</label>
+                    <textarea id="planExtra" class="form-control form-control-sm" rows="2" placeholder="如：重点练间歇、需要减重、早起训练..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-primary" id="submitPlanBtn">提交，生成计划</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -56,6 +97,7 @@
     var sendBtn = document.getElementById('sendBtn');
     var planHeader = document.getElementById('planHeader');
     var planTitle = document.getElementById('planTitle');
+    var submitPlanBtn = document.getElementById('submitPlanBtn');
     var currentAthleteId = null;
     var currentPlanId = null;
 
@@ -67,7 +109,6 @@
             .replace(/^## (.+)/gm, '<h5>$1</h5>')
             .replace(/^# (.+)/gm, '<h4>$1</h4>')
             .replace(/^- (.+)/gm, '• $1')
-            .replace(/^(\|.+)/gm, function(m) { return m.indexOf('---') > -1 ? '<br>' : '<br><code style="font-size:11px">' + m + '</code>'; })
             .replace(/\n/g, '<br>');
     };
 
@@ -96,7 +137,7 @@
             .then(function(plans) {
                 planList.innerHTML = '';
                 if (plans.length === 0) {
-                    planList.innerHTML = '<p class="text-muted small">暂无计划，点击上方按钮创建</p>';
+                    planList.innerHTML = '<p class="text-muted small">暂无计划</p>';
                 }
                 plans.forEach(function(p) {
                     var card = document.createElement('div');
@@ -112,7 +153,6 @@
     function openPlan(planId) {
         currentPlanId = planId;
         chatMessages.innerHTML = '';
-        // Fetch plan
         fetch('/api/coach/plan/' + planId)
             .then(function(r) { return r.json(); })
             .then(function(plan) {
@@ -120,11 +160,9 @@
                 planTitle.textContent = plan.name;
                 addMsg('assistant', plan.content);
             });
-        // Fetch messages
         fetch('/api/coach/messages?plan_id=' + planId)
             .then(function(r) { return r.json(); })
             .then(function(msgs) {
-                // Clear plan content and re-render
                 chatMessages.innerHTML = '';
                 planHeader.classList.remove('d-none');
                 msgs.forEach(function(m) {
@@ -157,11 +195,57 @@
                 chatInput.focus();
             })
             .catch(function() {
-                addMsg('assistant', '网络错误，请重试');
+                addMsg('assistant', '网络错误');
                 chatInput.disabled = false;
                 sendBtn.disabled = false;
             });
     }
+
+    // Submit plan creation
+    submitPlanBtn.addEventListener('click', function() {
+        var goal = document.getElementById('planGoal').value.trim();
+        if (!goal) { alert('请填写训练目标'); return; }
+
+        createPlanBtn.disabled = true;
+        createPlanBtn.textContent = '⏳ 生成中...';
+        submitPlanBtn.disabled = true;
+
+        var userInfo = '训练目标：' + goal;
+        var days = document.getElementById('planDays').value;
+        if (days) userInfo += '\n每周可训练天数：' + days + '天';
+        var injury = document.getElementById('planInjury').value.trim();
+        if (injury) userInfo += '\n伤病情况：' + injury;
+        var extra = document.getElementById('planExtra').value.trim();
+        if (extra) userInfo += '\n额外要求：' + extra;
+
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('planModal'));
+        modal.hide();
+
+        clearChat();
+        addMsg('user', '创建训练计划\n\n' + userInfo);
+
+        var form = new FormData();
+        form.append('athlete_id', currentAthleteId);
+        form.append('user_info', userInfo);
+
+        fetch('/api/coach/create-plan', { method: 'POST', body: form })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                createPlanBtn.disabled = false;
+                createPlanBtn.textContent = '📋 创建新计划';
+                submitPlanBtn.disabled = false;
+                if (data.plan_id) {
+                    loadPlans();
+                    openPlan(data.plan_id);
+                }
+            })
+            .catch(function() {
+                createPlanBtn.disabled = false;
+                createPlanBtn.textContent = '📋 创建新计划';
+                submitPlanBtn.disabled = false;
+            });
+    });
 
     // Event handlers
     athleteSelect.addEventListener('change', function() {
@@ -175,31 +259,6 @@
             planList.innerHTML = '<p class="text-muted small">请先选择运动员</p>';
             clearChat();
         }
-    });
-
-    createPlanBtn.addEventListener('click', function() {
-        if (!currentAthleteId) return;
-        createPlanBtn.disabled = true;
-        createPlanBtn.textContent = '⏳ 生成中...';
-        clearChat();
-
-        var form = new FormData();
-        form.append('athlete_id', currentAthleteId);
-
-        fetch('/api/coach/create-plan', { method: 'POST', body: form })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                createPlanBtn.disabled = false;
-                createPlanBtn.textContent = '📋 创建新计划';
-                if (data.plan_id) {
-                    loadPlans();
-                    openPlan(data.plan_id);
-                }
-            })
-            .catch(function() {
-                createPlanBtn.disabled = false;
-                createPlanBtn.textContent = '📋 创建新计划';
-            });
     });
 
     sendBtn.addEventListener('click', sendMsg);

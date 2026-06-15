@@ -110,6 +110,7 @@ async def get_messages(
 async def create_training_plan(
     request: Request,
     athlete_id: int = Form(...),
+    user_info: str = Form(""),
     db: Session = Depends(get_db),
     _=Depends(get_current_coach),
 ):
@@ -122,16 +123,21 @@ async def create_training_plan(
     context = build_athlete_context(athlete.name, activities, laps_map)
 
     now_str = datetime.utcnow().strftime("%m月%d日")
-    prompt = f"""请根据以下运动员的训练数据，制定一个为期4周的科学训练计划。
+    prompt = f"""请根据以下运动员的训练数据和用户需求，制定一个为期4周的科学训练计划。
 
+用户需求：
+{user_info}
+
+近期训练数据：
 {context}
 
 要求：
 1. 计划名称格式：「{athlete.name} 四周训练计划（{now_str}起）」
 2. 用Markdown表格呈现，包含日期、训练内容、配速区间、心率区间、训练时长
 3. 每周要有不同的训练重点
-4. 合理安排强度课和恢复课的比例
-5. 在计划末尾给出训练目标和建议
+4. 根据用户需求定制训练强度和内容
+5. 合理安排强度课和恢复课的比例
+6. 在计划末尾给出训练目标和建议
 """
 
     reply = await chat([{"role": "user", "content": prompt}])
