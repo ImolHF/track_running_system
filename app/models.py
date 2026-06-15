@@ -93,7 +93,9 @@ class TrainingPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False)
+    name = Column(String(255), default="训练计划")
     content = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -103,6 +105,7 @@ class CoachMessage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False)
+    plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=True)
     role = Column(String(20), nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

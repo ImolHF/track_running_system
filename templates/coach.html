@@ -3,29 +3,42 @@
 
 {% block content %}
 <div class="row" style="height: calc(100vh - 140px)">
-    <div class="col-12 d-flex flex-column">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <select id="athleteSelect" class="form-select form-select-sm d-inline-block" style="width:200px">
-                    <option value="">选择运动员...</option>
-                    {% for a in athletes %}
-                    <option value="{{ a.id }}">{{ a.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button id="createPlanBtn" class="btn btn-primary btn-sm" disabled>📋 创建跑步计划</button>
+    <!-- Left sidebar -->
+    <div class="col-md-3 border-end d-flex flex-column" style="height:100%">
+        <div class="mb-3">
+            <label class="form-label small text-muted">选择运动员</label>
+            <select id="athleteSelect" class="form-select form-select-sm">
+                <option value="">-- 选择 --</option>
+                {% for a in athletes %}
+                <option value="{{ a.id }}">{{ a.name }}</option>
+                {% endfor %}
+            </select>
         </div>
 
-        <div id="chatMessages" class="flex-grow-1 overflow-auto border rounded bg-light p-3 mb-2" style="flex:1">
+        <button id="createPlanBtn" class="btn btn-primary btn-sm w-100 mb-3" disabled>📋 创建新计划</button>
+
+        <div class="small text-muted mb-1">已有计划</div>
+        <div id="planList" class="flex-grow-1 overflow-auto">
+            <p class="text-muted small">请先选择运动员</p>
+        </div>
+    </div>
+
+    <!-- Right main area -->
+    <div class="col-md-9 d-flex flex-column" style="height:100%">
+        <div id="planHeader" class="d-none mb-2">
+            <h6 id="planTitle" class="mb-0"></h6>
+        </div>
+
+        <div id="chatMessages" class="flex-grow-1 overflow-auto rounded bg-light p-3 mb-2" style="flex:1">
             <div class="text-center text-muted py-5">
                 <h5>👋 AI 教练助手</h5>
-                <p>选择运动员后即可开始对话，或点击"创建跑步计划"获取智能训练方案</p>
+                <p>选择运动员，创建计划，开始智能训练指导</p>
             </div>
         </div>
 
-        <div class="input-group">
-            <input type="text" id="chatInput" class="form-control" placeholder="输入消息，或点击上方按钮创建训练计划..." disabled>
-            <button class="btn btn-dark" id="sendBtn" disabled>发送</button>
+        <div id="chatInputArea" class="input-group d-none">
+            <input type="text" id="chatInput" class="form-control" placeholder="输入消息...">
+            <button class="btn btn-dark" id="sendBtn">发送</button>
         </div>
     </div>
 </div>
@@ -35,129 +48,140 @@
 <script>
 (function() {
     var athleteSelect = document.getElementById('athleteSelect');
+    var createPlanBtn = document.getElementById('createPlanBtn');
+    var planList = document.getElementById('planList');
+    var chatMessages = document.getElementById('chatMessages');
+    var chatInputArea = document.getElementById('chatInputArea');
     var chatInput = document.getElementById('chatInput');
     var sendBtn = document.getElementById('sendBtn');
-    var createPlanBtn = document.getElementById('createPlanBtn');
-    var chatMessages = document.getElementById('chatMessages');
+    var planHeader = document.getElementById('planHeader');
+    var planTitle = document.getElementById('planTitle');
     var currentAthleteId = null;
+    var currentPlanId = null;
 
-    athleteSelect.addEventListener('change', function() {
-        currentAthleteId = this.value;
-        if (currentAthleteId) {
-            chatInput.disabled = false;
-            sendBtn.disabled = false;
-            createPlanBtn.disabled = false;
-            loadMessages();
-        } else {
-            chatInput.disabled = true;
-            sendBtn.disabled = true;
-            createPlanBtn.disabled = true;
-        }
-    });
-
-    function addMessage(role, content) {
-        var div = document.createElement('div');
-        div.className = 'mb-3 ' + (role === 'user' ? 'text-end' : '');
-        var bubble = document.createElement('div');
-        bubble.className = 'd-inline-block p-3 rounded ' + (role === 'user'
-            ? 'bg-primary text-white text-start'
-            : 'bg-white border text-start');
-        bubble.style.cssText = 'max-width:80%;white-space:pre-wrap;';
-        bubble.textContent = content;
-        div.appendChild(bubble);
-        chatMessages.appendChild(div);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function renderMarkdown(text) {
-        var html = text
+    var markdown = function(text) {
+        return text
             .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/^### (.+)/gm, '<h6>$1</h6>')
             .replace(/^## (.+)/gm, '<h5>$1</h5>')
             .replace(/^# (.+)/gm, '<h4>$1</h4>')
             .replace(/^- (.+)/gm, '• $1')
-            .replace(/\|(.+)\|/g, function(m) { return m.indexOf('---') === -1 ? '<br><code>' + m + '</code>' : m; })
+            .replace(/^(\|.+)/gm, function(m) { return m.indexOf('---') > -1 ? '<br>' : '<br><code style="font-size:11px">' + m + '</code>'; })
             .replace(/\n/g, '<br>');
-        return html;
-    }
+    };
 
-    function addMarkdownMessage(role, content) {
+    function addMsg(role, content) {
         var div = document.createElement('div');
         div.className = 'mb-3 ' + (role === 'user' ? 'text-end' : '');
-        var bubble = document.createElement('div');
-        bubble.className = 'd-inline-block p-3 rounded ' + (role === 'user'
-            ? 'bg-primary text-white text-start'
-            : 'bg-white border text-start');
-        bubble.style.cssText = 'max-width:85%;';
-        bubble.innerHTML = renderMarkdown(content);
-        div.appendChild(bubble);
+        var b = document.createElement('div');
+        b.className = 'd-inline-block p-3 rounded ' + (role === 'user' ? 'bg-primary text-white text-start' : 'bg-white border text-start');
+        b.style.cssText = 'max-width:85%;';
+        b.innerHTML = markdown(content);
+        div.appendChild(b);
         chatMessages.appendChild(div);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    function clearPlaceholder() {
-        var ph = chatMessages.querySelector('.text-center');
-        if (ph) ph.remove();
+    function clearChat() {
+        chatMessages.innerHTML = '';
+        chatInputArea.classList.add('d-none');
+        planHeader.classList.add('d-none');
     }
 
-    function loadMessages() {
-        clearPlaceholder();
-        chatMessages.querySelectorAll('.chat-msg').forEach(function(e) { e.remove(); });
-        fetch('/api/coach/messages?athlete_id=' + currentAthleteId)
+    function loadPlans() {
+        clearChat();
+        fetch('/api/coach/plans?athlete_id=' + currentAthleteId)
             .then(function(r) { return r.json(); })
-            .then(function(msgs) {
-                msgs.forEach(function(m) {
-                    addMarkdownMessage(m.role, m.content);
+            .then(function(plans) {
+                planList.innerHTML = '';
+                if (plans.length === 0) {
+                    planList.innerHTML = '<p class="text-muted small">暂无计划，点击上方按钮创建</p>';
+                }
+                plans.forEach(function(p) {
+                    var card = document.createElement('div');
+                    card.className = 'card card-sm mb-2';
+                    card.style.cssText = 'cursor:pointer';
+                    card.onclick = function() { openPlan(p.id); };
+                    card.innerHTML = '<div class="card-body p-2"><small class="fw-bold">' + p.name + '</small><br><small class="text-muted">' + p.created_at + '</small></div>';
+                    planList.appendChild(card);
                 });
             });
     }
 
-    function sendMessage(msg) {
-        if (!msg || !currentAthleteId) return;
-        clearPlaceholder();
-        addMarkdownMessage('user', msg);
+    function openPlan(planId) {
+        currentPlanId = planId;
+        chatMessages.innerHTML = '';
+        // Fetch plan
+        fetch('/api/coach/plan/' + planId)
+            .then(function(r) { return r.json(); })
+            .then(function(plan) {
+                planHeader.classList.remove('d-none');
+                planTitle.textContent = plan.name;
+                addMsg('assistant', plan.content);
+            });
+        // Fetch messages
+        fetch('/api/coach/messages?plan_id=' + planId)
+            .then(function(r) { return r.json(); })
+            .then(function(msgs) {
+                // Clear plan content and re-render
+                chatMessages.innerHTML = '';
+                planHeader.classList.remove('d-none');
+                msgs.forEach(function(m) {
+                    addMsg(m.role, m.content);
+                });
+                chatInputArea.classList.remove('d-none');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+    }
+
+    function sendMsg() {
+        var msg = chatInput.value.trim();
+        if (!msg || !currentPlanId || !currentAthleteId) return;
+        addMsg('user', msg);
         chatInput.value = '';
-        sendBtn.disabled = true;
         chatInput.disabled = true;
+        sendBtn.disabled = true;
 
         var form = new FormData();
+        form.append('plan_id', currentPlanId);
         form.append('athlete_id', currentAthleteId);
         form.append('message', msg);
 
         fetch('/api/coach/chat', { method: 'POST', body: form })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.reply) {
-                    addMarkdownMessage('assistant', data.reply);
-                } else {
-                    addMarkdownMessage('assistant', data.error || 'AI 服务暂时不可用');
-                }
-                sendBtn.disabled = false;
+                addMsg('assistant', data.reply || data.error || 'AI 服务暂不可用');
                 chatInput.disabled = false;
+                sendBtn.disabled = false;
                 chatInput.focus();
             })
             .catch(function() {
-                addMarkdownMessage('assistant', '网络错误，请重试');
-                sendBtn.disabled = false;
+                addMsg('assistant', '网络错误，请重试');
                 chatInput.disabled = false;
+                sendBtn.disabled = false;
             });
     }
 
-    sendBtn.addEventListener('click', function() {
-        sendMessage(chatInput.value.trim());
-    });
-
-    chatInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') sendMessage(chatInput.value.trim());
+    // Event handlers
+    athleteSelect.addEventListener('change', function() {
+        currentAthleteId = this.value;
+        currentPlanId = null;
+        if (currentAthleteId) {
+            createPlanBtn.disabled = false;
+            loadPlans();
+        } else {
+            createPlanBtn.disabled = true;
+            planList.innerHTML = '<p class="text-muted small">请先选择运动员</p>';
+            clearChat();
+        }
     });
 
     createPlanBtn.addEventListener('click', function() {
         if (!currentAthleteId) return;
-        clearPlaceholder();
-        addMarkdownMessage('user', '请为我制定训练计划');
         createPlanBtn.disabled = true;
         createPlanBtn.textContent = '⏳ 生成中...';
+        clearChat();
 
         var form = new FormData();
         form.append('athlete_id', currentAthleteId);
@@ -165,19 +189,22 @@
         fetch('/api/coach/create-plan', { method: 'POST', body: form })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.reply) {
-                    addMarkdownMessage('assistant', data.reply);
-                } else {
-                    addMarkdownMessage('assistant', data.error || 'AI 服务暂时不可用');
-                }
                 createPlanBtn.disabled = false;
-                createPlanBtn.textContent = '📋 创建跑步计划';
+                createPlanBtn.textContent = '📋 创建新计划';
+                if (data.plan_id) {
+                    loadPlans();
+                    openPlan(data.plan_id);
+                }
             })
             .catch(function() {
-                addMarkdownMessage('assistant', '网络错误，请重试');
                 createPlanBtn.disabled = false;
-                createPlanBtn.textContent = '📋 创建跑步计划';
+                createPlanBtn.textContent = '📋 创建新计划';
             });
+    });
+
+    sendBtn.addEventListener('click', sendMsg);
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendMsg();
     });
 })();
 </script>
