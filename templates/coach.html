@@ -131,7 +131,6 @@
     }
 
     function loadPlans() {
-        clearChat();
         fetch('/api/coach/plans?athlete_id=' + currentAthleteId)
             .then(function(r) { return r.json(); })
             .then(function(plans) {
@@ -152,19 +151,25 @@
 
     function openPlan(planId) {
         currentPlanId = planId;
-        chatMessages.innerHTML = '';
+        chatMessages.innerHTML = '<div class=\"text-center py-3\"><div class=\"spinner-border spinner-border-sm text-muted\"></div></div>';
+        chatInputArea.classList.add('d-none');
+        planHeader.classList.add('d-none');
+
         fetch('/api/coach/plan/' + planId)
             .then(function(r) { return r.json(); })
             .then(function(plan) {
                 planHeader.classList.remove('d-none');
                 planTitle.textContent = plan.name;
-                addMsg('assistant', plan.content);
             });
+
         fetch('/api/coach/messages?plan_id=' + planId)
             .then(function(r) { return r.json(); })
             .then(function(msgs) {
                 chatMessages.innerHTML = '';
                 planHeader.classList.remove('d-none');
+                if (msgs.length === 0) {
+                    chatMessages.innerHTML = '<p class=\"text-muted text-center\">暂无对话</p>';
+                }
                 msgs.forEach(function(m) {
                     addMsg(m.role, m.content);
                 });
@@ -218,12 +223,15 @@
         var extra = document.getElementById('planExtra').value.trim();
         if (extra) userInfo += '\n额外要求：' + extra;
 
-        // Close modal
-        var modal = bootstrap.Modal.getInstance(document.getElementById('planModal'));
+        // Close modal using Bootstrap 5 API
+        var modalEl = document.getElementById('planModal');
+        var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.hide();
 
-        clearChat();
-        addMsg('user', '创建训练计划\n\n' + userInfo);
+        // Show loading in chat
+        chatMessages.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary mb-2"></div><p class="text-muted small">AI 正在生成训练计划...</p></div>';
+        chatInputArea.classList.add('d-none');
+        planHeader.classList.add('d-none');
 
         var form = new FormData();
         form.append('athlete_id', currentAthleteId);
@@ -238,12 +246,15 @@
                 if (data.plan_id) {
                     loadPlans();
                     openPlan(data.plan_id);
+                } else {
+                    chatMessages.innerHTML = '<div class=\"text-center py-5 text-danger\">创建失败：' + (data.error || '未知错误') + '</div>';
                 }
             })
-            .catch(function() {
+            .catch(function(e) {
                 createPlanBtn.disabled = false;
                 createPlanBtn.textContent = '📋 创建新计划';
                 submitPlanBtn.disabled = false;
+                chatMessages.innerHTML = '<div class=\"text-center py-5 text-danger\">网络错误，请重试</div>';
             });
     });
 
