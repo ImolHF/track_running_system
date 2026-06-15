@@ -7,3 +7,5 @@ data/
 .vscode/
 *.swp
 *.swo
+ngrok.exe
+ngrok.zip
