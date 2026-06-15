@@ -4,11 +4,28 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
-from app.models import Athlete, Activity, TrainingPlan, CoachMessage
+from app.models import Athlete, Activity, Lap, TrainingPlan, CoachMessage
 from app.auth import get_current_coach
 from app.ai_client import chat, build_athlete_context
 
 router = APIRouter()
+
+
+def _load_laps(db: Session, activities: list) -> dict:
+    """Load laps for a list of activities, return {activity_id: [laps]}."""
+    if not activities:
+        return {}
+    activity_ids = [a.id for a in activities]
+    all_laps = (
+        db.query(Lap)
+        .filter(Lap.activity_id.in_(activity_ids))
+        .order_by(Lap.activity_id, Lap.lap_number)
+        .all()
+    )
+    laps_map = {}
+    for lap in all_laps:
+        laps_map.setdefault(lap.activity_id, []).append(lap)
+    return laps_map
 
 
 @router.get("/")
@@ -69,7 +86,8 @@ async def coach_chat(
         .limit(50)
         .all()
     )
-    context = build_athlete_context(athlete.name, activities)
+    laps_map = _load_laps(db, activities)
+    context = build_athlete_context(athlete.name, activities, laps_map)
 
     # Build conversation history
     history = (
@@ -118,7 +136,8 @@ async def create_training_plan(
         .limit(50)
         .all()
     )
-    context = build_athlete_context(athlete.name, activities)
+    laps_map = _load_laps(db, activities)
+    context = build_athlete_context(athlete.name, activities, laps_map)
 
     prompt = f"""请根据以下运动员的训练数据，制定一个为期4周的科学训练计划。
 

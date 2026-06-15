@@ -40,28 +40,76 @@ async def chat(messages: list[dict]) -> str:
         return f"AI 服务暂时不可用：{e}"
 
 
-def build_athlete_context(athlete_name: str, activities: list) -> str:
-    """Build a structured text summary of an athlete's training data."""
+def _fmt_pace(seconds):
+    if not seconds:
+        return "--"
+    return f"{int(seconds // 60)}'{int(seconds % 60):02d}\""
+
+
+def _fmt_duration(seconds):
+    if not seconds:
+        return "--"
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def build_athlete_context(athlete_name: str, activities: list, laps_map: dict = None) -> str:
+    """Build a structured text summary with per-lap detail for each activity."""
     if not activities:
         return f"运动员 {athlete_name} 暂无训练数据。"
 
-    lines = [f"## {athlete_name} 训练数据汇总\n"]
+    laps_map = laps_map or {}
+    lines = [f"## {athlete_name} 训练数据\n"]
     total_km = 0
     total_count = len(activities)
 
     for a in activities:
         km = (a.distance_m or 0) / 1000
         total_km += km
-        pace = a.avg_pace_s_per_km or 0
-        pace_str = f"{int(pace // 60)}'{int(pace % 60):02d}\"" if pace else "--"
-        hr = a.avg_heart_rate or "--"
+
+        # Activity header
         lines.append(
-            f"- {a.start_time.strftime('%m-%d')} | "
-            f"{km:.1f}km | "
-            f"配速{pace_str} | "
-            f"心率{hr}bpm | "
-            f"{a.name or '跑步'}"
+            f"### {a.start_time.strftime('%m-%d')} {a.name or '跑步'}\n"
+            f"- 距离：{km:.2f}km | 时长：{_fmt_duration(a.duration_s)} | "
+            f"平均配速：{_fmt_pace(a.avg_pace_s_per_km)} | "
+            f"平均心率：{a.avg_heart_rate or '--'}bpm | 最大心率：{a.max_heart_rate or '--'}bpm"
         )
+        extras = []
+        if a.avg_cadence:
+            extras.append(f"步频：{a.avg_cadence:.0f}spm")
+        if a.avg_stride_length_cm:
+            extras.append(f"步幅：{a.avg_stride_length_cm:.1f}cm")
+        if a.elevation_gain_m:
+            extras.append(f"爬升：{a.elevation_gain_m:.0f}m")
+        if a.training_effect_aerobic:
+            extras.append(f"有氧效果：{a.training_effect_aerobic:.1f}")
+        if a.training_effect_anaerobic:
+            extras.append(f"无氧效果：{a.training_effect_anaerobic:.1f}")
+        if a.vo2max:
+            extras.append(f"VO2max：{a.vo2max:.0f}")
+        if extras:
+            lines.append(f"- {' | '.join(extras)}")
+
+        # Per-lap detail
+        laps = laps_map.get(a.id, [])
+        if laps:
+            lines.append(f"\n分段数据（共{len(laps)}圈）：")
+            lines.append("| 圈 | 距离 | 时间 | 配速 | 心率 | 步频 |")
+            lines.append("|:--:|:----:|:----:|:----:|:----:|:----:|")
+            for lap in laps:
+                lines.append(
+                    f"| {lap.lap_number} | "
+                    f"{lap.distance_m/1000:.2f}km | "
+                    f"{_fmt_duration(lap.duration_s)} | "
+                    f"{_fmt_pace(lap.avg_pace_s_per_km)} | "
+                    f"{lap.avg_heart_rate or '--'}bpm | "
+                    f"{lap.avg_cadence:.0f}spm |"
+                )
+        lines.append("")
 
     lines.insert(1, f"总活动数：{total_count} | 总跑量：{total_km:.1f}km\n")
     return "\n".join(lines)
