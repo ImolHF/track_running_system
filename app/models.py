@@ -88,6 +88,26 @@ class Lap(Base):
     activity = relationship("Activity", back_populates="laps")
 
 
+class TrainingPlan(Base):
+    __tablename__ = "training_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CoachMessage(Base):
+    __tablename__ = "coach_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False)
+    role = Column(String(20), nullable=False)  # "user" or "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class SyncLog(Base):
     __tablename__ = "sync_logs"
 

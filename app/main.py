@@ -90,8 +90,9 @@ app.add_middleware(FlashMiddleware)
 setup_templates(app)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-from app.routers import auth_router, dashboard_router, athlete_router, activity_router, sync_router
+from app.routers import auth_router, dashboard_router, athlete_router, activity_router, sync_router, coach_router
 app.include_router(auth_router.router)
+app.include_router(coach_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(athlete_router.router)
 app.include_router(activity_router.router)

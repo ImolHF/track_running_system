@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}AI 教练 - 首都高校一体化训练平台管理系统{% endblock %}
+
+{% block content %}
+<div class="row" style="height: calc(100vh - 140px)">
+    <div class="col-12 d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <select id="athleteSelect" class="form-select form-select-sm d-inline-block" style="width:200px">
+                    <option value="">选择运动员...</option>
+                    {% for a in athletes %}
+                    <option value="{{ a.id }}">{{ a.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button id="createPlanBtn" class="btn btn-primary btn-sm" disabled>📋 创建跑步计划</button>
+        </div>
+
+        <div id="chatMessages" class="flex-grow-1 overflow-auto border rounded bg-light p-3 mb-2" style="flex:1">
+            <div class="text-center text-muted py-5">
+                <h5>👋 AI 教练助手</h5>
+                <p>选择运动员后即可开始对话，或点击"创建跑步计划"获取智能训练方案</p>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="chatInput" class="form-control" placeholder="输入消息，或点击上方按钮创建训练计划..." disabled>
+            <button class="btn btn-dark" id="sendBtn" disabled>发送</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var athleteSelect = document.getElementById('athleteSelect');
+    var chatInput = document.getElementById('chatInput');
+    var sendBtn = document.getElementById('sendBtn');
+    var createPlanBtn = document.getElementById('createPlanBtn');
+    var chatMessages = document.getElementById('chatMessages');
+    var currentAthleteId = null;
+
+    athleteSelect.addEventListener('change', function() {
+        currentAthleteId = this.value;
+        if (currentAthleteId) {
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            createPlanBtn.disabled = false;
+            loadMessages();
+        } else {
+            chatInput.disabled = true;
+            sendBtn.disabled = true;
+            createPlanBtn.disabled = true;
+        }
+    });
+
+    function addMessage(role, content) {
+        var div = document.createElement('div');
+        div.className = 'mb-3 ' + (role === 'user' ? 'text-end' : '');
+        var bubble = document.createElement('div');
+        bubble.className = 'd-inline-block p-3 rounded ' + (role === 'user'
+            ? 'bg-primary text-white text-start'
+            : 'bg-white border text-start');
+        bubble.style.cssText = 'max-width:80%;white-space:pre-wrap;';
+        bubble.textContent = content;
+        div.appendChild(bubble);
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function renderMarkdown(text) {
+        var html = text
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.+)/gm, '<h6>$1</h6>')
+            .replace(/^## (.+)/gm, '<h5>$1</h5>')
+            .replace(/^# (.+)/gm, '<h4>$1</h4>')
+            .replace(/^- (.+)/gm, '• $1')
+            .replace(/\|(.+)\|/g, function(m) { return m.indexOf('---') === -1 ? '<br><code>' + m + '</code>' : m; })
+            .replace(/\n/g, '<br>');
+        return html;
+    }
+
+    function addMarkdownMessage(role, content) {
+        var div = document.createElement('div');
+        div.className = 'mb-3 ' + (role === 'user' ? 'text-end' : '');
+        var bubble = document.createElement('div');
+        bubble.className = 'd-inline-block p-3 rounded ' + (role === 'user'
+            ? 'bg-primary text-white text-start'
+            : 'bg-white border text-start');
+        bubble.style.cssText = 'max-width:85%;';
+        bubble.innerHTML = renderMarkdown(content);
+        div.appendChild(bubble);
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function clearPlaceholder() {
+        var ph = chatMessages.querySelector('.text-center');
+        if (ph) ph.remove();
+    }
+
+    function loadMessages() {
+        clearPlaceholder();
+        chatMessages.querySelectorAll('.chat-msg').forEach(function(e) { e.remove(); });
+        fetch('/api/coach/messages?athlete_id=' + currentAthleteId)
+            .then(function(r) { return r.json(); })
+            .then(function(msgs) {
+                msgs.forEach(function(m) {
+                    addMarkdownMessage(m.role, m.content);
+                });
+            });
+    }
+
+    function sendMessage(msg) {
+        if (!msg || !currentAthleteId) return;
+        clearPlaceholder();
+        addMarkdownMessage('user', msg);
+        chatInput.value = '';
+        sendBtn.disabled = true;
+        chatInput.disabled = true;
+
+        var form = new FormData();
+        form.append('athlete_id', currentAthleteId);
+        form.append('message', msg);
+
+        fetch('/api/coach/chat', { method: 'POST', body: form })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.reply) {
+                    addMarkdownMessage('assistant', data.reply);
+                } else {
+                    addMarkdownMessage('assistant', data.error || 'AI 服务暂时不可用');
+                }
+                sendBtn.disabled = false;
+                chatInput.disabled = false;
+                chatInput.focus();
+            })
+            .catch(function() {
+                addMarkdownMessage('assistant', '网络错误，请重试');
+                sendBtn.disabled = false;
+                chatInput.disabled = false;
+            });
+    }
+
+    sendBtn.addEventListener('click', function() {
+        sendMessage(chatInput.value.trim());
+    });
+
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendMessage(chatInput.value.trim());
+    });
+
+    createPlanBtn.addEventListener('click', function() {
+        if (!currentAthleteId) return;
+        clearPlaceholder();
+        addMarkdownMessage('user', '请为我制定训练计划');
+        createPlanBtn.disabled = true;
+        createPlanBtn.textContent = '⏳ 生成中...';
+
+        var form = new FormData();
+        form.append('athlete_id', currentAthleteId);
+
+        fetch('/api/coach/create-plan', { method: 'POST', body: form })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.reply) {
+                    addMarkdownMessage('assistant', data.reply);
+                } else {
+                    addMarkdownMessage('assistant', data.error || 'AI 服务暂时不可用');
+                }
+                createPlanBtn.disabled = false;
+                createPlanBtn.textContent = '📋 创建跑步计划';
+            })
+            .catch(function() {
+                addMarkdownMessage('assistant', '网络错误，请重试');
+                createPlanBtn.disabled = false;
+                createPlanBtn.textContent = '📋 创建跑步计划';
+            });
+    });
+})();
+</script>
+{% endblock %}

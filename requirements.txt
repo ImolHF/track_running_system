@@ -10,3 +10,4 @@ garth>=0.8.0,<1.0.0
 apscheduler>=3.10.0,<4.0.0
 python-dotenv>=1.0.0,<2.0.0
 aiofiles>=24.0.0,<25.0.0
+openai>=1.50.0,<2.0.0
