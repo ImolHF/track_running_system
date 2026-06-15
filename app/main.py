@@ -45,11 +45,14 @@ def create_first_coach():
 
 
 async def sync_job():
-    db = SessionLocal()
     try:
-        sync_all_athletes(db, sync_type="auto")
-    finally:
-        db.close()
+        db = SessionLocal()
+        try:
+            sync_all_athletes(db, sync_type="auto")
+        finally:
+            db.close()
+    except Exception:
+        pass  # sync failure must not crash the server
 
 
 scheduler = AsyncIOScheduler()
