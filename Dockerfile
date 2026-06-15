@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir \
     sqlalchemy==2.0.36 \
     jinja2==3.1.4 \
     python-multipart==0.0.19 \
-    passlib[bcrypt]==1.7.4 \
+    bcrypt==4.0.1 \
     cryptography==44.0.1 \
     garth==0.8.0 \
     apscheduler==3.11.2 \

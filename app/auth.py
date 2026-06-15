@@ -1,14 +1,14 @@
-from passlib.hash import bcrypt
+import bcrypt
 from fastapi import Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 async def get_current_coach(request: Request):
