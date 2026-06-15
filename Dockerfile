@@ -16,9 +16,6 @@ RUN pip install --no-cache-dir \
     aiofiles==24.1.0 \
     itsdangerous==2.2.0
 
-ENV HOST=0.0.0.0
-ENV PORT=8000
-
 RUN mkdir -p /app/data
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
